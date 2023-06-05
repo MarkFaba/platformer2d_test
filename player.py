@@ -233,19 +233,34 @@ class Rabbit(pygame.sprite.Sprite):
         self.move_left_keys(keys)  
         self.move_right_keys(keys)
         self.move()
-        if self.position.y > 750:
+        if self.position.y > 750: # Fall off to lava
             self.position.y = 600
             self.position.x = 925
             self.rect.topleft = self.position
             self.velocity.y = 0
             self.velocity.x = 0
+        if self.position.y <= 0: # Hit ceiling
+            self.position.y += 64
             
 
+# Chocolate is a sprite, when the rabbit collides with it, the player wins.
+class Chocolate(pygame.sprite.Sprite):
+    def __init__(self, x, y, image, width, height):
+        super().__init__()
+        self.image = image
+        self.rect = self.image.get_rect()
+        self.rect.topleft = (x, y)
+        self.position = Vector2(x, y)
+        self.width = width
+        self.height = height
+
+    def update(self):
+        self.rect.topleft = self.position
 
 
 def main():
     pygame.init()
-    pygame.display.set_caption("Platformer Game")
+    pygame.display.set_caption("Platformer Game Test")
 
     width, height = 1184, 800
     screen = pygame.display.set_mode((width, height))
@@ -254,8 +269,12 @@ def main():
     original_image = pygame.image.load("rabbit.png")
     resized_image = pygame.transform.scale(original_image, (32, 32))
 
+    chocolate_image = pygame.image.load("chocolate.png")
+    resized_chocolate_image = pygame.transform.scale(chocolate_image, (32, 32))
+
     rabbit = Rabbit(925, 600, resized_image, 100, 100)
-    sprites = pygame.sprite.Group(rabbit)
+    chocolate = Chocolate(164, 195, resized_chocolate_image, 100, 100)
+    sprites = pygame.sprite.Group(rabbit, chocolate)
 
     clock = pygame.time.Clock()
 
