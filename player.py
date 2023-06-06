@@ -1,4 +1,5 @@
 import csv
+import random
 import pygame
 from pygame.math import Vector2
 
@@ -7,6 +8,7 @@ TILE_SIZE = 32
 BLACK = (0, 0, 0)
 GREEN = (0, 255, 0)
 BLUE = (0, 0, 255)
+REDSTONE = (255, 0, 0)
 DIRT = (139, 69, 19)
 
 class UnWalkableTile(pygame.sprite.Sprite):
@@ -16,27 +18,59 @@ class UnWalkableTile(pygame.sprite.Sprite):
         self.velocity = Vector2(0, 0)
 
 
-class MovablePlatform(pygame.sprite.Sprite):
-    def __init__(self, x, y):
+# Circle, red small bullet class
+class Bullet(pygame.sprite.Sprite):
+    def __init__(self, x, y, velocity, obstacle_group, rabbit):
         super().__init__()
+        self.image = pygame.Surface([5, 5])
+        self.image.fill(REDSTONE)
+        self.rect = self.image.get_rect()
+        self.rect.center = (x, y)
+        self.velocity = velocity
+        self.obstacle_group = obstacle_group
+        self.rabbit = rabbit
 
-        # Load the platform image
-        self.image = pygame.transform.scale(pygame.image.load('image/_48c65a6d-0913-4c9e-8821-3b9d00e4b4d3.jpg'), (300, 32))
+    def update(self):
+        self.rect.move_ip(self.velocity)
+        if self.rect.right < 0 or self.rect.left > 1184 or self.rect.bottom < 0 or self.rect.top > 800:
+            self.kill()
+        if pygame.sprite.spritecollideany(self, self.obstacle_group):
+            self.kill()
+        if pygame.sprite.collide_rect(self, self.rabbit):
+            self.rabbit.hit(20)
+            print(self.rabbit.current_health)
+            print("hit")
+            self.kill()
+
+class MovablePlatform(pygame.sprite.Sprite):
+    def __init__(self, x, y, velocity, image, start_x, end_x, start_y, end_y):
+        super().__init__()
+        self.velocity = velocity
+        self.image = image
 
         # Set the position of the platform
         self.rect = self.image.get_rect()
         self.rect.topleft = (x, y)
 
-        # Set the platform's movement velocity
-        self.velocity = Vector2(3, 0)
+        # Set the start and end points for the platform movement
+        self.start_point = start_x
+        self.end_point = end_x
+
+        # Set the vertical movement boundaries
+        self.start_y = start_y
+        self.end_y = end_y
 
     def update(self):
         # Move the platform
         self.rect.move_ip(self.velocity)
 
-        # Reverse direction if the platform reaches the window's edges
-        if self.rect.right > 1184 or self.rect.left < 0:
+        # Reverse direction if the platform reaches the start or end point horizontally
+        if self.rect.right > self.end_point or self.rect.left < self.start_point:
             self.velocity.x *= -1
+
+        # Reverse direction if the platform reaches the start or end point vertically
+        if self.rect.bottom > self.end_y or self.rect.top < self.start_y:
+            self.velocity.y *= -1
 
 
 # Map collusion information, level image, and rabbit spawn position
@@ -48,7 +82,6 @@ class Level:
         self.movable_platforms = movable_platforms
         self.unwalkable_tile_group = self.load_unwalkable_tiles()
         
-
     def load_unwalkable_tiles(self):
         unwalkable_tiles = []
 
@@ -68,6 +101,10 @@ class Level:
                 unwalkable_tile_group.add(movable_platform)
         return unwalkable_tile_group
 
+    def update(self):
+        if self.movable_platforms:
+            for movable_platform in self.movable_platforms:
+                movable_platform.update()
 
 # Air class
 class Air:
@@ -154,6 +191,8 @@ class Rabbit(pygame.sprite.Sprite):
         self.rect.topleft = (x, y)
         self.position = Vector2(x, y)
         self.velocity = Vector2(0, 0) 
+        self.velocitylr = Vector2(0, 0)
+        self.velocityplatform = Vector2(0, 0)
         self.health_capacity = health_capacity
         self.current_health = current_health
         self.is_walking_left = False
@@ -165,7 +204,6 @@ class Rabbit(pygame.sprite.Sprite):
         self.unwalkable_tile_group = level.unwalkable_tile_group
         self.collected_chocolates = 0
         self.mission_completed = False 
-        self.was_on_platform = False
         self.is_on_platform = False
         print(self.rect)
 
@@ -180,31 +218,27 @@ class Rabbit(pygame.sprite.Sprite):
         # Check collision with unwalkable tiles
         hit_list = pygame.sprite.spritecollide(self, self.unwalkable_tile_group, False)
         if len(hit_list) > 0:
-
             if current_position.y <= hit_list[0].rect.top: # rabbit head above or equal height to tile
                 self.rect.bottom = hit_list[0].rect.top # a feature, not a bug
                 self.position.y = self.rect.y
                 self.land()
 
+                # Calculate effects when rabbit is on platform
                 if isinstance(hit_list[0], MovablePlatform):
                     self.is_on_platform = True
                 else:
                     self.is_on_platform = False
 
-                if self.is_on_platform and not self.was_on_platform:
-                    # print(self.was_on_platform) # Always False
-                    # print(self.is_on_platform) # Always True
-                    # print("This should only be printed once") 
-                    self.velocity.x += hit_list[0].velocity.x 
-                    # The ultimate duck tape
-                    if self.velocity.x > hit_list[0].velocity.x + 1 and self.velocity.x > 0:
-                        self.velocity.x = hit_list[0].velocity.x + 1
-                    if self.velocity.x < hit_list[0].velocity.x - 1 and self.velocity.x < 0:
-                        self.velocity.x = hit_list[0].velocity.x - 1
+                if self.is_on_platform:
+                    self.velocityplatform = hit_list[0].velocity.copy()
+                else:
+                    self.velocityplatform = Vector2(0, 0)
                 return 
+            
             elif current_position.y > hit_list[0].rect.top: # rabbit head below tile
                 self.rect.top = hit_list[0].rect.bottom
-                self.position.y = self.rect.y
+                if not self.is_on_platform:
+                    self.position.y = self.rect.y
                 self.velocity.y = 0
                 return
         else:
@@ -215,23 +249,28 @@ class Rabbit(pygame.sprite.Sprite):
     def check_collision_horizontal(self):
         current_position = self.position
         # Check collision with unwalkable tiles
-        # Duct tape approach
         hit_list = pygame.sprite.spritecollide(self, self.unwalkable_tile_group, False)
         if len(hit_list) > 0:
             if current_position.x <= hit_list[0].rect.left:
                 self.velocity.x = 0
-                self.rect.right = hit_list[0].rect.left
-                self.position.x = self.rect.x
+                self.velocitylr.x = 0
+                self.velocityplatform.x = 0
+                if not isinstance(hit_list[0], MovablePlatform):
+                    self.rect.right = hit_list[0].rect.left
+                    self.position.x = self.rect.x
                 return
             elif current_position.x > hit_list[0].rect.left:
                 self.velocity.x = 0
-                self.rect.left = hit_list[0].rect.right
-                self.position.x = self.rect.x
+                self.velocitylr.x = 0
+                self.velocityplatform.x = 0
+                if not isinstance(hit_list[0], MovablePlatform):
+                    self.rect.left = hit_list[0].rect.right
+                    self.position.x = self.rect.x
                 return
         
     def move(self):
         # Update position based on velocity on that direction
-        self.position += self.velocity
+        self.position += self.velocity + self.velocitylr + self.velocityplatform
         # Update velocity based on air type, only vertical velocity is affected
         if not self.is_on_ground:
             self.velocity.y += self.air_type.get_gravity() # Current value: 1
@@ -258,28 +297,28 @@ class Rabbit(pygame.sprite.Sprite):
     def move_left_keys(self, keys):
         if keys[pygame.K_LEFT] or keys[pygame.K_a] and not self.is_walking_right:
             if not self.is_walking_left:
-                self.velocity.x = -1 * self.ground_type.get_horizontal_velocity_modifier() 
+                self.velocitylr.x = -1 * self.ground_type.get_horizontal_velocity_modifier() 
                 self.is_walking_left = True
                 self.is_walking_right = False
                 self.update_image_direction()
                 print(f"Rabbit velocity: {self.velocity}")
         else:
             if self.is_walking_left:
-                self.velocity.x = 0 
+                self.velocitylr.x = 0 
                 self.is_walking_left = False
                 self.update_image_direction()
 
     def move_right_keys(self, keys):
         if keys[pygame.K_RIGHT] or keys[pygame.K_d] and self.is_on_ground and not self.is_walking_left:
             if not self.is_walking_right:
-                self.velocity.x = 1 * self.ground_type.get_horizontal_velocity_modifier()
+                self.velocitylr.x = 1 * self.ground_type.get_horizontal_velocity_modifier()
                 self.is_walking_right = True
                 self.is_walking_left = False
                 self.update_image_direction()
                 print(f"Rabbit velocity: {self.velocity}")
         else:
             if self.is_walking_right:
-                self.velocity.x = 0
+                self.velocitylr.x = 0
                 self.is_walking_right = False
                 self.update_image_direction()
 
@@ -290,6 +329,15 @@ class Rabbit(pygame.sprite.Sprite):
             self.respawn()
 
     def shoot(self):
+        # if self.current_health > 0:
+        #     if self.is_walking_left:
+        #         self.level.add_projectile(Projectile(self.position, Vector2(-1, 0)))
+        #     elif self.is_walking_right:
+        #         self.level.add_projectile(Projectile(self.position, Vector2(1, 0)))
+        #     else:
+        #         self.level.add_projectile(Projectile(self.position, Vector2(0, 0)))
+        # else:
+        #     print("Rabbit is dead, cannot shoot!")
         pass
 
     def respawn(self):
@@ -322,7 +370,7 @@ class Rabbit(pygame.sprite.Sprite):
         if self.position.y <= 0: # Hit ceiling
             self.position.y += 64
         self.collected_3_chocolates()
-        self.was_on_platform = self.is_on_platform # Does not work
+
 
 
 class Chocolate(pygame.sprite.Sprite):
@@ -356,18 +404,24 @@ def main():
     width, height = 1184, 800
     screen = pygame.display.set_mode((width, height))
 
-    platform = MovablePlatform(300, 600)
+    platform_image = pygame.transform.scale(pygame.image.load('image/_48c65a6d-0913-4c9e-8821-3b9d00e4b4d3.jpg'), (300, 32))
+    platform = MovablePlatform(450, 666, Vector2(2.5, 0), platform_image, 425, 900, 550, 650)
+
     level = Level('IntGrid_layer.csv', '_composite.png', Vector2(925, 600), [platform])
 
     rabbit = Rabbit(*level.rabbitspawn_pos, 100, 100, level)
+
+    bullet1 = Bullet(100, 100, Vector2(1, 1), level.unwalkable_tile_group, rabbit)
 
     chocolate = Chocolate(164, 195, 100, 100, rabbit)
     chocolate2 = Chocolate(164, 580, 100, 100, rabbit)
     chocolate3 = Chocolate(548, 515, 100, 100, rabbit)
 
     sprites = pygame.sprite.Group(rabbit, chocolate, chocolate2, chocolate3, platform)
+    bullets = pygame.sprite.Group(bullet1)
 
     clock = pygame.time.Clock()
+    last_bullet_time = None
 
     running = True
     while running:
@@ -375,17 +429,27 @@ def main():
             if event.type == pygame.QUIT:
                 running = False
 
+        now = pygame.time.get_ticks()
+        # Create new bullet every 1 second
+        if last_bullet_time is None or now - last_bullet_time >= 1500:
+            bullet1 = Bullet(35, 35, Vector2(1, 1), level.unwalkable_tile_group, rabbit)
+            bullets.add(bullet1)
+            last_bullet_time = now
+
         keys = pygame.key.get_pressed()
         rabbit.update(keys)
         chocolate.update()
         chocolate2.update()
         chocolate3.update()
-        platform.update()
+        level.update()
+        bullets.update()
 
         # Draw the level
         screen.blit(level.level_image_file, (0, 0))
 
         sprites.draw(screen)
+        bullets.draw(screen)
+
         pygame.display.flip()
         screen.fill((0, 0, 0))  
 
