@@ -202,6 +202,7 @@ class Rabbit(pygame.sprite.Sprite):
         self.rect = self.image.get_rect()
         self.rect.topleft = (x, y)
         self.position = Vector2(x, y)
+        self.position_center = Vector2(x + self.rect.width / 2, y + self.rect.height / 2)
         self.velocity = Vector2(0, 0) 
         self.velocitylr = Vector2(0, 0)
         self.velocityplatform = Vector2(0, 0)
@@ -371,6 +372,7 @@ class Rabbit(pygame.sprite.Sprite):
 
     def update(self, keys):
         self.rect.topleft = self.position
+        self.position_center = self.rect.center
         self.check_collision()
         self.check_collision_horizontal()
         self.jump(keys)
