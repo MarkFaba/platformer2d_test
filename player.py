@@ -2,6 +2,7 @@ import csv
 import random
 import pygame
 from pygame.math import Vector2
+import pygame_gui
 
 TILE_SIZE = 32
 # Define colors
@@ -26,12 +27,15 @@ class Bullet(pygame.sprite.Sprite):
         self.image.fill(REDSTONE)
         self.rect = self.image.get_rect()
         self.rect.center = (x, y)
+        self.position = Vector2(x, y)
         self.velocity = velocity
         self.obstacle_group = obstacle_group
         self.rabbit = rabbit
 
     def update(self):
-        self.rect.move_ip(self.velocity)
+        # self.rect.move_ip(self.velocity)
+        self.rect.center = self.position
+        self.position += self.velocity
         if self.rect.right < 0 or self.rect.left > 1184 or self.rect.bottom < 0 or self.rect.top > 800:
             self.kill()
         if pygame.sprite.spritecollideany(self, self.obstacle_group):
@@ -46,7 +50,10 @@ class MovablePlatform(pygame.sprite.Sprite):
     def __init__(self, x, y, velocity, image, start_x, end_x, start_y, end_y):
         super().__init__()
         self.velocity = velocity
+        self.position = Vector2(x, y)
         self.image = image
+        self.velocity_reversed_x = -self.velocity.x
+        self.velocity_reversed_y = -self.velocity.y
 
         # Set the position of the platform
         self.rect = self.image.get_rect()
@@ -62,15 +69,19 @@ class MovablePlatform(pygame.sprite.Sprite):
 
     def update(self):
         # Move the platform
-        self.rect.move_ip(self.velocity)
-
+        # self.rect.move_ip(self.velocity)
+        self.rect.center = self.position
+        self.position += self.velocity
         # Reverse direction if the platform reaches the start or end point horizontally
-        if self.rect.right > self.end_point or self.rect.left < self.start_point:
-            self.velocity.x *= -1
-
+        if self.rect.right > self.end_point:
+            self.velocity.x = self.velocity_reversed_x
+        if self.rect.left < self.start_point:
+            self.velocity.x = self.velocity_reversed_x * -1
         # Reverse direction if the platform reaches the start or end point vertically
-        if self.rect.bottom > self.end_y or self.rect.top < self.start_y:
-            self.velocity.y *= -1
+        if self.rect.bottom > self.end_y:
+            self.velocity.y *= self.velocity_reversed_y
+        if self.rect.top < self.start_y:
+            self.velocity.y = self.velocity_reversed_y * -1
 
 
 # Map collusion information, level image, and rabbit spawn position
@@ -405,35 +416,45 @@ def main():
     screen = pygame.display.set_mode((width, height))
 
     platform_image = pygame.transform.scale(pygame.image.load('image/_48c65a6d-0913-4c9e-8821-3b9d00e4b4d3.jpg'), (300, 32))
-    platform = MovablePlatform(450, 666, Vector2(2.5, 0), platform_image, 425, 900, 550, 650)
+    platform = MovablePlatform(575, 666, Vector2(2.5, 0), platform_image, 425, 900, 560, 650)
 
     level = Level('IntGrid_layer.csv', '_composite.png', Vector2(925, 600), [platform])
 
     rabbit = Rabbit(*level.rabbitspawn_pos, 100, 100, level)
-
-    bullet1 = Bullet(100, 100, Vector2(1, 1), level.unwalkable_tile_group, rabbit)
 
     chocolate = Chocolate(164, 195, 100, 100, rabbit)
     chocolate2 = Chocolate(164, 580, 100, 100, rabbit)
     chocolate3 = Chocolate(548, 515, 100, 100, rabbit)
 
     sprites = pygame.sprite.Group(rabbit, chocolate, chocolate2, chocolate3, platform)
-    bullets = pygame.sprite.Group(bullet1)
+    bullets = pygame.sprite.Group()
 
     clock = pygame.time.Clock()
     last_bullet_time = None
+
+    ui_manager = pygame_gui.UIManager((width, height), 'theme.json')
+    rabbit_health_bar = pygame_gui.elements.UIScreenSpaceHealthBar(pygame.Rect((50, 700), (200, 30)),ui_manager,
+                                                            rabbit)
 
     running = True
     while running:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
+        ui_manager.process_events(event)
 
         now = pygame.time.get_ticks()
         # Create new bullet every 1 second
         if last_bullet_time is None or now - last_bullet_time >= 1500:
-            bullet1 = Bullet(35, 35, Vector2(1, 1), level.unwalkable_tile_group, rabbit)
-            bullets.add(bullet1)
+            random_normalized_vector = Vector2(random.random() * 100, random.random() * 100).normalize()
+            random_normalized_vector2 = Vector2(random.random() * -100, random.random() * 100).normalize()
+            random_normalized_vector3 = Vector2(random.random() * 100, random.random() * -100).normalize()
+            random_normalized_vector4 = Vector2(random.random() * -100, random.random() * -100).normalize()
+            bullet1 = Bullet(35, 35, random_normalized_vector, level.unwalkable_tile_group, rabbit)
+            bullet2 = Bullet(width-35, 35, random_normalized_vector2, level.unwalkable_tile_group, rabbit)
+            bullet3 = Bullet(35, height-35, random_normalized_vector3, level.unwalkable_tile_group, rabbit)
+            bullet4 = Bullet(width-35, height-35, random_normalized_vector4, level.unwalkable_tile_group, rabbit)
+            bullets.add(bullet1, bullet2, bullet3, bullet4)
             last_bullet_time = now
 
         keys = pygame.key.get_pressed()
@@ -444,11 +465,13 @@ def main():
         level.update()
         bullets.update()
 
+        ui_manager.update(1/60)
         # Draw the level
         screen.blit(level.level_image_file, (0, 0))
 
         sprites.draw(screen)
         bullets.draw(screen)
+        ui_manager.draw_ui(screen)
 
         pygame.display.flip()
         screen.fill((0, 0, 0))  
