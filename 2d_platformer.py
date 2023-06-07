@@ -5,12 +5,13 @@ from pygame.math import Vector2
 import pygame_gui
 
 TILE_SIZE = 32
+
 # Define colors
-BLACK = (0, 0, 0)
-GREEN = (0, 255, 0)
-BLUE = (0, 0, 255)
-REDSTONE = (255, 0, 0)
-DIRT = (139, 69, 19)
+BLACK = pygame.color.Color("#000000")  
+GREEN = pygame.color.Color("#00FF00")
+BLUE = pygame.color.Color("#0000FF")
+REDSTONE = pygame.color.Color("#FF4500")
+DIRT = pygame.color.Color("#472522")
 
 class UnWalkableTile(pygame.sprite.Sprite):
     def __init__(self, x, y):
@@ -415,10 +416,12 @@ def main():
     width, height = 1184, 800
     screen = pygame.display.set_mode((width, height))
 
-    platform_image = pygame.transform.scale(pygame.image.load('image/_48c65a6d-0913-4c9e-8821-3b9d00e4b4d3.jpg'), (300, 32))
-    platform = MovablePlatform(575, 666, Vector2(2.5, 0), platform_image, 425, 900, 560, 650)
+    # platform_image = pygame.transform.scale(pygame.image.load('image/_48c65a6d-0913-4c9e-8821-3b9d00e4b4d3.jpg'), (300, 32))
+    platform_image = pygame.surface.Surface((300, 32))
+    platform_image.fill(DIRT)
+    platform = MovablePlatform(575, height - (32*3+16), Vector2(2.5, 0), platform_image, 425, 900, 0, 800)
 
-    level = Level('IntGrid_layer.csv', '_composite.png', Vector2(925, 600), [platform])
+    level = Level('IntGrid_layer.csv', 'level.png', Vector2(925, 600), [platform])
 
     rabbit = Rabbit(*level.rabbitspawn_pos, 100, 100, level)
 
@@ -433,7 +436,7 @@ def main():
     last_bullet_time = None
 
     ui_manager = pygame_gui.UIManager((width, height), 'theme.json')
-    rabbit_health_bar = pygame_gui.elements.UIScreenSpaceHealthBar(pygame.Rect((50, 700), (200, 30)),ui_manager,
+    rabbit_health_bar = pygame_gui.elements.UIScreenSpaceHealthBar(pygame.Rect((32, height - 64), (250, 25)),ui_manager,
                                                             rabbit)
 
     running = True
@@ -448,13 +451,11 @@ def main():
         if last_bullet_time is None or now - last_bullet_time >= 1500:
             random_normalized_vector = Vector2(random.random() * 100, random.random() * 100).normalize()
             random_normalized_vector2 = Vector2(random.random() * -100, random.random() * 100).normalize()
-            random_normalized_vector3 = Vector2(random.random() * 100, random.random() * -100).normalize()
-            random_normalized_vector4 = Vector2(random.random() * -100, random.random() * -100).normalize()
+            random_normalized_vector3 = Vector2(random.random() * 200 - 100, random.random() * 100).normalize()
             bullet1 = Bullet(35, 35, random_normalized_vector, level.unwalkable_tile_group, rabbit)
             bullet2 = Bullet(width-35, 35, random_normalized_vector2, level.unwalkable_tile_group, rabbit)
-            bullet3 = Bullet(35, height-35, random_normalized_vector3, level.unwalkable_tile_group, rabbit)
-            bullet4 = Bullet(width-35, height-35, random_normalized_vector4, level.unwalkable_tile_group, rabbit)
-            bullets.add(bullet1, bullet2, bullet3, bullet4)
+            bullet3 = Bullet(width // 2, 35, random_normalized_vector3, level.unwalkable_tile_group, rabbit)
+            bullets.add(bullet1, bullet2, bullet3)
             last_bullet_time = now
 
         keys = pygame.key.get_pressed()
