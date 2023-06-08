@@ -10,6 +10,7 @@ TILE_SIZE = 32
 BLACK = pygame.color.Color("#000000")  
 GREEN = pygame.color.Color("#00FF00")
 BLUE = pygame.color.Color("#0000FF")
+CRYSTAL_BLUE = pygame.color.Color("#00FFFF")
 REDSTONE = pygame.color.Color("#FF4500")
 DIRT = pygame.color.Color("#472522")
 
@@ -93,8 +94,12 @@ class Level:
         self.rabbitspawn_pos = rabbitspawn_pos
         self.movable_platforms = movable_platforms
         self.unwalkable_tile_group = self.load_unwalkable_tiles()
+        self.unwalkable_tile_group_2 = self.load_unwalkable_tiles(marker='2')
+        self.unwalkable_tile_group_3 = self.load_unwalkable_tiles(marker='3')
+        self.unwalkable_tile_group_4 = self.load_unwalkable_tiles(marker='4')
+        self.unwalkable_tile_group_5 = self.load_unwalkable_tiles(marker='5')
         
-    def load_unwalkable_tiles(self):
+    def load_unwalkable_tiles(self, marker='1'):
         unwalkable_tiles = []
 
         with open(self.csv_file, 'r') as f:
@@ -104,7 +109,7 @@ class Level:
         unwalkable_tile_group = pygame.sprite.Group()
         for row in range(len(unwalkable_tiles)):
             for col in range(len(unwalkable_tiles[row])):
-                if unwalkable_tiles[row][col] == '1':
+                if unwalkable_tiles[row][col] == marker:
                     unwalkable_tile = UnWalkableTile(col * TILE_SIZE, row * TILE_SIZE)
                     unwalkable_tile_group.add(unwalkable_tile)
 
@@ -418,7 +423,6 @@ def main():
     width, height = 1184, 800
     screen = pygame.display.set_mode((width, height))
 
-    # platform_image = pygame.transform.scale(pygame.image.load('image/_48c65a6d-0913-4c9e-8821-3b9d00e4b4d3.jpg'), (300, 32))
     platform_image = pygame.surface.Surface((300, 32))
     platform_image.fill(DIRT)
     platform = MovablePlatform(575, height - (32*3+16), Vector2(2.5, 0), platform_image, 425, 900, 0, 800)
@@ -427,9 +431,9 @@ def main():
 
     rabbit = Rabbit(*level.rabbitspawn_pos, 100, 100, level)
 
-    chocolate = Chocolate(164, 195, 100, 100, rabbit)
-    chocolate2 = Chocolate(164, 580, 100, 100, rabbit)
-    chocolate3 = Chocolate(548, 515, 100, 100, rabbit)
+    chocolate = Chocolate(32 * 5, 195, 100, 100, rabbit)
+    chocolate2 = Chocolate(32 * 5, 580, 100, 100, rabbit)
+    chocolate3 = Chocolate(32 * 17, 515, 100, 100, rabbit)
 
     sprites = pygame.sprite.Group(rabbit, chocolate, chocolate2, chocolate3, platform)
     bullets = pygame.sprite.Group()
@@ -440,45 +444,49 @@ def main():
     ui_manager = pygame_gui.UIManager((width, height), 'theme.json')
     rabbit_health_bar = pygame_gui.elements.UIScreenSpaceHealthBar(pygame.Rect((32, height - 64), (250, 25)),ui_manager,
                                                             rabbit)
-
+    current_mapid = 1
+    total_maps = 1
+    mapid_label = pygame_gui.elements.UILabel(pygame.Rect((32, height - 96), (250, 25)), 
+                                              f"Map: {current_mapid}/{total_maps}", ui_manager)
     running = True
     while running:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
         ui_manager.process_events(event)
+        if current_mapid == total_maps and rabbit.mission_completed: # Duck tape: last rabbit
+            running = False # TODO: Add win screen
+        if current_mapid == 1:
+            now = pygame.time.get_ticks()
+            # Create new bullet every 1 second
+            if last_bullet_time is None or now - last_bullet_time >= 1500:
+                random_normalized_vector = Vector2(random.random() * 100, random.random() * 100).normalize()
+                random_normalized_vector2 = Vector2(random.random() * -100, random.random() * 100).normalize()
+                random_normalized_vector3 = Vector2(random.random() * 200 - 100, random.random() * 100).normalize()
+                bullet1 = Bullet(35, 35, random_normalized_vector, level.unwalkable_tile_group, rabbit)
+                bullet2 = Bullet(width-35, 35, random_normalized_vector2, level.unwalkable_tile_group, rabbit)
+                bullet3 = Bullet(width // 2, 35, random_normalized_vector3, level.unwalkable_tile_group, rabbit)
+                bullets.add(bullet1, bullet2, bullet3)
+                last_bullet_time = now
 
-        now = pygame.time.get_ticks()
-        # Create new bullet every 1 second
-        if last_bullet_time is None or now - last_bullet_time >= 1500:
-            random_normalized_vector = Vector2(random.random() * 100, random.random() * 100).normalize()
-            random_normalized_vector2 = Vector2(random.random() * -100, random.random() * 100).normalize()
-            random_normalized_vector3 = Vector2(random.random() * 200 - 100, random.random() * 100).normalize()
-            bullet1 = Bullet(35, 35, random_normalized_vector, level.unwalkable_tile_group, rabbit)
-            bullet2 = Bullet(width-35, 35, random_normalized_vector2, level.unwalkable_tile_group, rabbit)
-            bullet3 = Bullet(width // 2, 35, random_normalized_vector3, level.unwalkable_tile_group, rabbit)
-            bullets.add(bullet1, bullet2, bullet3)
-            last_bullet_time = now
+            keys = pygame.key.get_pressed()
+            rabbit.update(keys)
+            chocolate.update()
+            chocolate2.update()
+            chocolate3.update()
+            level.update()
+            bullets.update()
 
-        keys = pygame.key.get_pressed()
-        rabbit.update(keys)
-        chocolate.update()
-        chocolate2.update()
-        chocolate3.update()
-        level.update()
-        bullets.update()
+            ui_manager.update(1/60)
+            # Draw the level
+            screen.blit(level.level_image_file, (0, 0))
 
-        ui_manager.update(1/60)
-        # Draw the level
-        screen.blit(level.level_image_file, (0, 0))
+            sprites.draw(screen)
+            bullets.draw(screen)
 
-        sprites.draw(screen)
-        bullets.draw(screen)
         ui_manager.draw_ui(screen)
-
         pygame.display.flip()
         screen.fill((0, 0, 0))  
-
         clock.tick(80) 
 
     pygame.quit()
