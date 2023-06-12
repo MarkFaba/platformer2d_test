@@ -1,10 +1,14 @@
 import csv
+import ctypes
 import random
 import pygame
 from pygame.math import Vector2
 import pygame_gui
 
 TILE_SIZE = 32
+
+# Disable windows app scaling 
+ctypes.windll.user32.SetProcessDPIAware()
 
 # Define colors
 BLACK = pygame.color.Color("#000000")  
