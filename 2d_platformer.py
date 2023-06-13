@@ -48,8 +48,7 @@ class Bullet(pygame.sprite.Sprite):
         if pygame.sprite.spritecollideany(self, self.obstacle_group):
             self.kill()
         if self.obstacle_group_2:
-            if pygame.sprite.spritecollideany(self, self.obstacle_group_2): # Mirror
-                # Velocity is a 2D vector, when the bullet hits the mirror, it is reflected by y axis
+            if pygame.sprite.spritecollideany(self, self.obstacle_group_2): # Mirror, unused
                 self.velocity.y = self.velocity_with_reflected_y
         if self.obstacle_group_3:
             if pygame.sprite.spritecollideany(self, self.obstacle_group_3):
@@ -75,40 +74,27 @@ class Bullet(pygame.sprite.Sprite):
 class MovablePlatform(pygame.sprite.Sprite):
     def __init__(self, x, y, velocity, image, start_x, end_x, start_y, end_y, marker='1'):
         super().__init__()
-        self.velocity = velocity
         self.position = Vector2(x, y)
         self.image = image
-        self.velocity_reversed_x = -self.velocity.x
-        self.velocity_reversed_y = -self.velocity.y
-        self.marker = marker # The type of platform
+        self.rect = self.image.get_rect(topleft=(x, y))
+        self.marker = marker
+        self.velocity = Vector2(velocity)
 
-        # Set the position of the platform
-        self.rect = self.image.get_rect()
-        self.rect.topleft = (x, y)
+        self.start_point_x = start_x
+        self.end_point_x = end_x
 
-        # Set the start and end points for the platform movement
-        self.start_point = start_x
-        self.end_point = end_x
-
-        # Set the vertical movement boundaries
-        self.start_y = start_y
-        self.end_y = end_y
+        self.start_point_y = start_y
+        self.end_point_y = end_y
 
     def update(self):
-        # Move the platform
-        # self.rect.move_ip(self.velocity)
-        self.rect.center = self.position
         self.position += self.velocity
-        # Reverse direction if the platform reaches the start or end point horizontally
-        if self.rect.right > self.end_point:
-            self.velocity.x = self.velocity_reversed_x
-        if self.rect.left < self.start_point:
-            self.velocity.x = self.velocity_reversed_x * -1
-        # Reverse direction if the platform reaches the start or end point vertically
-        if self.rect.bottom > self.end_y:
-            self.velocity.y *= self.velocity_reversed_y
-        if self.rect.top < self.start_y:
-            self.velocity.y = self.velocity_reversed_y * -1
+        self.rect.topleft = self.position
+
+        if self.rect.right > self.end_point_x or self.rect.left < self.start_point_x:
+            self.velocity.x *= -1
+
+        if self.rect.bottom > self.end_point_y or self.rect.top < self.start_point_y:
+            self.velocity.y *= -1
 
 
 # Map collusion information, level image, and rabbit spawn position
@@ -510,7 +496,7 @@ def main():
 
     platform_image = pygame.surface.Surface((32*5, 32))
     platform_image.fill(REDSTONE)
-    platform2 = MovablePlatform(200, 32*10+16, Vector2(3.5, 0), platform_image, 32*5, width - 32*5, 0, 800, marker="4")
+    platform2 = MovablePlatform(400, 32*10+16, Vector2(-3.5, 0), platform_image, 32*5, width - 32*5, 0, 800, marker="4")
 
     platform_image = pygame.surface.Surface((32*5, 32))
     platform_image.fill(DIRT)
@@ -553,12 +539,9 @@ def main():
         if current_mapid == 1:
             # Create new bullet every 1 second
             if last_bullet_time is None or now - last_bullet_time >= 1500:
-                random_normalized_vector = Vector2(random.random() * 100, random.random() * 100).normalize()
-                random_normalized_vector2 = Vector2(random.random() * -100, random.random() * 100).normalize()
-                random_normalized_vector3 = Vector2(random.random() * 200 - 100, random.random() * 100).normalize()
-                bullet1 = Bullet(35, 35, random_normalized_vector, level.unwalkable_tile_group, rabbit)
-                bullet2 = Bullet(width-35, 35, random_normalized_vector2, level.unwalkable_tile_group, rabbit)
-                bullet3 = Bullet(width // 2, 35, random_normalized_vector3, level.unwalkable_tile_group, rabbit)
+                bullet1 = Bullet(35, 35, Vector2(random.random() * 100, random.random() * 100).normalize(), level.unwalkable_tile_group, rabbit)
+                bullet2 = Bullet(width-35, 35, Vector2(random.random() * -100, random.random() * 100).normalize(), level.unwalkable_tile_group, rabbit)
+                bullet3 = Bullet(width // 2, 35, Vector2(random.random() * 200 - 100, random.random() * 100).normalize(), level.unwalkable_tile_group, rabbit)
                 bullets.add(bullet1, bullet2, bullet3)
                 last_bullet_time = now
 
@@ -619,13 +602,23 @@ def main():
 
         if current_mapid == 3:
     
+                if last_bullet_time3 is None or now - last_bullet_time3 >= 3000:
+                    bullet1 = Bullet(width // 2, 16, Vector2(random.random() * 200 - 100, random.random() * 100).normalize(), level3.unwalkable_tile_group, rabbit3, obstacle_group_5=level3.unwalkable_tile_group_5)
+                    bullet2 = Bullet(width // 2, 16, Vector2(random.random() * 200 - 100, random.random() * 100).normalize(), level3.unwalkable_tile_group, rabbit3, obstacle_group_5=level3.unwalkable_tile_group_5)
+                    bullet3 = Bullet(32*10-16, 16, Vector2(0, 100).normalize(), level3.unwalkable_tile_group, rabbit3, obstacle_group_5=level3.unwalkable_tile_group_5)
+                    bullet4 = Bullet(32*28-16, 16, Vector2(0, 100).normalize(), level3.unwalkable_tile_group, rabbit3, obstacle_group_5=level3.unwalkable_tile_group_5)
+                    bullet5 = Bullet(16, 32*6+16, Vector2(100, 0).normalize(), level3.unwalkable_tile_group, rabbit3, obstacle_group_5=level3.unwalkable_tile_group_5)
+                    bullet6 = Bullet(16, 32*12+16, Vector2(100, 0).normalize(), level3.unwalkable_tile_group, rabbit3, obstacle_group_5=level3.unwalkable_tile_group_5)
+                    bullets3.add(bullet1, bullet2, bullet3, bullet4, bullet5, bullet6)
+                    last_bullet_time3 = now
+
                 rabbit_health_bar.set_sprite_to_monitor(rabbit3)
                 mapid_label.set_text(f"Map: {current_mapid}/{total_maps}")
                 rabbit3.update(keys)
                 level3.update()
                 bullets3.update()
                 chocolates3.update()
-    
+
                 screen.blit(level3.level_image_file, (0, 0))
                 sprites3.draw(screen)
                 chocolates3.draw(screen)
