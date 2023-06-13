@@ -606,31 +606,31 @@ def main():
 
         if current_mapid == 3:
     
-                if last_bullet_time3 is None or now - last_bullet_time3 >= 3000:
-                    bullet1 = Bullet(width // 2, 16, Vector2(random.random() * 200 - 100, random.random() * 100).normalize(), level3.unwalkable_tile_group, rabbit3, obstacle_group_5=level3.unwalkable_tile_group_5)
-                    bullet2 = Bullet(width // 2, 16, Vector2(random.random() * 200 - 100, random.random() * 100).normalize(), level3.unwalkable_tile_group, rabbit3, obstacle_group_5=level3.unwalkable_tile_group_5)
-                    bullet3 = Bullet(32*10-16, 16, Vector2(0, 100).normalize(), level3.unwalkable_tile_group, rabbit3, obstacle_group_5=level3.unwalkable_tile_group_5)
-                    bullet4 = Bullet(32*28-16, 16, Vector2(0, 100).normalize(), level3.unwalkable_tile_group, rabbit3, obstacle_group_5=level3.unwalkable_tile_group_5)
-                    bullet5 = Bullet(16, 32*6+16, Vector2(100, 0).normalize(), level3.unwalkable_tile_group, rabbit3, obstacle_group_5=level3.unwalkable_tile_group_5)
-                    bullet6 = Bullet(16, 32*12+16, Vector2(100, 0).normalize(), level3.unwalkable_tile_group, rabbit3, obstacle_group_5=level3.unwalkable_tile_group_5)
-                    bullets3.add(bullet1, bullet2, bullet3, bullet4, bullet5, bullet6)
-                    last_bullet_time3 = now
+            if last_bullet_time3 is None or now - last_bullet_time3 >= 3000:
+                bullet1 = Bullet(width // 2, 16, Vector2(random.random() * 200 - 100, random.random() * 100).normalize(), level3.unwalkable_tile_group, rabbit3, obstacle_group_5=level3.unwalkable_tile_group_5)
+                bullet2 = Bullet(width // 2, 16, Vector2(random.random() * 200 - 100, random.random() * 100).normalize(), level3.unwalkable_tile_group, rabbit3, obstacle_group_5=level3.unwalkable_tile_group_5)
+                bullet3 = Bullet(32*10-16, 16, Vector2(0, 100).normalize(), level3.unwalkable_tile_group, rabbit3, obstacle_group_5=level3.unwalkable_tile_group_5)
+                bullet4 = Bullet(32*28-16, 16, Vector2(0, 100).normalize(), level3.unwalkable_tile_group, rabbit3, obstacle_group_5=level3.unwalkable_tile_group_5)
+                bullet5 = Bullet(16, 32*6+16, Vector2(100, 0).normalize(), level3.unwalkable_tile_group, rabbit3, obstacle_group_5=level3.unwalkable_tile_group_5)
+                bullet6 = Bullet(16, 32*12+16, Vector2(100, 0).normalize(), level3.unwalkable_tile_group, rabbit3, obstacle_group_5=level3.unwalkable_tile_group_5)
+                bullets3.add(bullet1, bullet2, bullet3, bullet4, bullet5, bullet6)
+                last_bullet_time3 = now
 
-                rabbit_health_bar.set_sprite_to_monitor(rabbit3)
-                mapid_label.set_text(f"Map: {current_mapid}/{total_maps}")
-                rabbit3.update(keys)
-                level3.update()
-                bullets3.update()
-                chocolates3.update()
+            rabbit_health_bar.set_sprite_to_monitor(rabbit3)
+            mapid_label.set_text(f"Map: {current_mapid}/{total_maps}")
+            rabbit3.update(keys)
+            level3.update()
+            bullets3.update()
+            chocolates3.update()
 
-                screen.blit(level3.level_image_file, (0, 0))
-                sprites3.draw(screen)
-                chocolates3.draw(screen)
-                bullets3.draw(screen)
-                if rabbit3.mission_completed:
-                    current_mapid = 4
-                    sprites3.empty()
-                    bullets3.empty()
+            screen.blit(level3.level_image_file, (0, 0))
+            sprites3.draw(screen)
+            chocolates3.draw(screen)
+            bullets3.draw(screen)
+            if rabbit3.mission_completed:
+                current_mapid = 4
+                sprites3.empty()
+                bullets3.empty()
 
         ui_manager.update(1/60)
         ui_manager.draw_ui(screen)
