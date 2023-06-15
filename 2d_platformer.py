@@ -7,6 +7,8 @@ import pygame_gui
 
 TILE_SIZE = 32
 
+# TODO - Redraw level 3
+
 # Disable windows app scaling 
 ctypes.windll.user32.SetProcessDPIAware()
 
@@ -114,7 +116,7 @@ class Level:
         self.unwalkable_tile_group_4 = self.load_unwalkable_tiles(marker='4') # Redstone
         self.unwalkable_tile_group_5 = self.load_unwalkable_tiles(marker='5') # Ice
         
-    def load_unwalkable_tiles(self, marker='1'):
+    def load_unwalkable_tiles(self, marker='1') -> pygame.sprite.Group():
         unwalkable_tiles = []
 
         with open(self.csv_file, 'r') as f:
@@ -341,10 +343,10 @@ class Rabbit(pygame.sprite.Sprite):
         self.velocity.y = 0
         self.is_on_ground = True
 
+    # Bug: velocity is not immediately updated when rabbit switches tiles
     def move_left_keys(self, keys):
         if keys[pygame.K_LEFT] or keys[pygame.K_a] and not self.is_walking_right:
             if not self.is_walking_left:
-                # Bug: self.ground_type is not immediately updated when rabbit switches tiles
                 self.velocitylr.x = -1 * self.ground_type.get_horizontal_velocity_modifier() 
                 self.is_walking_left = True
                 self.is_walking_right = False
@@ -463,7 +465,7 @@ def main():
     # ====================================================================================================
     platform_image = pygame.surface.Surface((300, 32))
     platform_image.fill(DIRT)
-    platform = MovablePlatform(575, height - (32*4+16), Vector2(2.5, 0), platform_image, 425, 900, 0, 800)
+    platform = MovablePlatform(575, height - (32*5), Vector2(2.5, 0), platform_image, 425, 900, 0, 800)
 
     level = Level('level1.csv', 'level1.png', Vector2(955, 600), [platform])
 
@@ -509,8 +511,12 @@ def main():
     level3 = Level('level3.csv', 'level3.png', Vector2(600, 700), [platform1, platform2, platform3])
     rabbit3 = Rabbit(*level3.rabbitspawn_pos, 160, 160, level3)
 
+    chocolate3_1 = Chocolate(32 * 4, 32*3, 100, 100, rabbit3)
+    chocolate3_2 = Chocolate(width - 32 * 5, 32*3, 100, 100, rabbit3)
+    chocolate3_3 = Chocolate(width // 2 - 16, height - 32*7, 100, 100, rabbit3)
+
     sprites3 = pygame.sprite.Group(rabbit3, platform1, platform2, platform3)
-    chocolates3 = pygame.sprite.Group()
+    chocolates3 = pygame.sprite.Group(chocolate3_1, chocolate3_2, chocolate3_3)
     bullets3 = pygame.sprite.Group()
     bullets3_1 = pygame.sprite.Group()
     bullets3_2 = pygame.sprite.Group()
@@ -631,6 +637,9 @@ def main():
                 current_mapid = 4
                 sprites3.empty()
                 bullets3.empty()
+                # quit game
+                pygame.quit()
+                sys.exit()
 
         ui_manager.update(1/60)
         ui_manager.draw_ui(screen)
