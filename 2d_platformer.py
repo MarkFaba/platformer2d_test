@@ -7,17 +7,22 @@ import pygame_gui
 
 TILE_SIZE = 32
 
-# TODO - Redraw level 3
 
 # Disable windows app scaling 
 ctypes.windll.user32.SetProcessDPIAware()
 
 # Define colors
-BLACK = pygame.color.Color("#000000")  
-GREEN = pygame.color.Color("#00FF00")
-BLUE = pygame.color.Color("#0000FF")
-CRYSTAL_BLUE = pygame.color.Color("#00FFFF")
+BLACKSTONE = pygame.color.Color("#000000")  
+ANTIQUA_WHITE = pygame.color.Color("#FAEBD7")
 REDSTONE = pygame.color.Color("#FF0044")
+AMETHYST = pygame.color.Color("#9966CC")
+EMERALD = pygame.color.Color("#50C878")
+RUBY = pygame.color.Color("#E0115F")
+SAPPHIRE = pygame.color.Color("#0F52BA")
+GOLD = pygame.color.Color("#FFD700")
+SILVER = pygame.color.Color("#C0C0C0")
+BRONZE = pygame.color.Color("#CD7F32")
+DIAMOND = pygame.color.Color("#28C9D4")
 DIRT = pygame.color.Color("#472522")
 
 class UnWalkableTile(pygame.sprite.Sprite):
@@ -45,6 +50,9 @@ class Bullet(pygame.sprite.Sprite):
         self.obstacle_group_4 = obstacle_group_4
         self.obstacle_group_5 = obstacle_group_5
 
+    def homing(self):
+        self.velocity = self.rabbit.position_center.normalize()
+
     def update(self):
         # self.rect.move_ip(self.velocity)
         self.rect.center = self.position
@@ -54,7 +62,7 @@ class Bullet(pygame.sprite.Sprite):
         if pygame.sprite.spritecollideany(self, self.obstacle_group):
             self.kill()
         if self.obstacle_group_2:
-            if pygame.sprite.spritecollideany(self, self.obstacle_group_2): # Mirror, unused
+            if pygame.sprite.spritecollideany(self, self.obstacle_group_2): # Horizontal Mirror
                 self.velocity.y = self.velocity_with_reflected_y
         if self.obstacle_group_3:
             if pygame.sprite.spritecollideany(self, self.obstacle_group_3):
@@ -68,11 +76,17 @@ class Bullet(pygame.sprite.Sprite):
         if pygame.sprite.collide_rect(self, self.rabbit):
             self.rabbit.hit(20)
             if self.rabbit.direction == "left":
-                self.rabbit.velocity_glide_r += 25
-                self.rabbit.velocity.y += -6
+                self.rabbit.velocity_glide_r += 10.0
+                if self.rabbit.is_on_ground:
+                    self.rabbit.velocity.y += -6
+                else:
+                    self.rabbit.velocity.y += 6
             elif self.rabbit.direction == "right":
-                self.rabbit.velocity_glide_l += 25
-                self.rabbit.velocity.y += -6
+                self.rabbit.velocity_glide_l += 10.0
+                if self.rabbit.is_on_ground:
+                    self.rabbit.velocity.y += -6
+                else:
+                    self.rabbit.velocity.y += 6
             print(self.rabbit.current_health)
             print("hit")
             self.kill()
@@ -159,7 +173,7 @@ class Dirt:
     def __init__(self):
         self.horizontal_velocity_modifier = 3.0
         self.normal_force = 1000
-        self.glide_decay = 10.0
+        self.glide_decay = 2.0
 
     def get_horizontal_velocity_modifier(self):
         return self.horizontal_velocity_modifier
@@ -169,7 +183,7 @@ class SoulSand:
     def __init__(self):
         self.horizontal_velocity_modifier = 1.5
         self.normal_force = 1000
-        self.glide_decay = 10.0
+        self.glide_decay = 3.0
 
     def get_horizontal_velocity_modifier(self):
         return self.horizontal_velocity_modifier
@@ -178,9 +192,9 @@ class SoulSand:
 class Ice:
     def __init__(self):
         self.horizontal_velocity_modifier = 9.0
-        self.glide_force = 15.0
+        self.glide_force = 9.0
         self.normal_force = 1000
-        self.glide_decay = 1.0
+        self.glide_decay = 0.1
 
     def get_horizontal_velocity_modifier(self):
         return self.horizontal_velocity_modifier
@@ -188,9 +202,9 @@ class Ice:
 class Mirror:
     def __init__(self):
         self.horizontal_velocity_modifier = 5.0
-        self.glide_force = 10.0
+        self.glide_force = 5.0
         self.normal_force = 1000
-        self.glide_decay = 2.0
+        self.glide_decay = 0.2
 
     def get_horizontal_velocity_modifier(self):
         return self.horizontal_velocity_modifier
@@ -220,6 +234,7 @@ class Rabbit(pygame.sprite.Sprite):
         self.air_type = Air()
         self.level = level
         self.unwalkable_tile_group = level.unwalkable_tile_group
+        self.unwalkable_tile_group_mirror = level.unwalkable_tile_group_2
         self.unwalkable_tile_group_redstone = level.unwalkable_tile_group_4
         self.unwalkable_tile_group_ice = level.unwalkable_tile_group_5
         self.collected_chocolates = 0
@@ -228,6 +243,7 @@ class Rabbit(pygame.sprite.Sprite):
         self.current_time = 0
         self.current_time_switchable = 0
         self.current_time_switch = True
+        self.has_jumped = False
 
     def update_image_direction(self):
         if self.is_walking_left:
@@ -241,9 +257,10 @@ class Rabbit(pygame.sprite.Sprite):
         current_position = self.position
         # Check collision with unwalkable tiles
         hit_list = pygame.sprite.spritecollide(self, self.unwalkable_tile_group, False)
+        hit_list_mirror = pygame.sprite.spritecollide(self, self.unwalkable_tile_group_mirror, False)
         hit_list_ice = pygame.sprite.spritecollide(self, self.unwalkable_tile_group_ice, False)
         hit_list_redstone = pygame.sprite.spritecollide(self, self.unwalkable_tile_group_redstone, False)
-        hit_list_all = hit_list + hit_list_ice + hit_list_redstone
+        hit_list_all = hit_list + hit_list_ice + hit_list_redstone + hit_list_mirror
         if len(hit_list_all) > 0:
             if current_position.y <= hit_list_all[0].rect.top: # rabbit head above or equal height to tile
                 self.rect.bottom = hit_list_all[0].rect.top # a feature, not a bug
@@ -252,9 +269,11 @@ class Rabbit(pygame.sprite.Sprite):
                 if hit_list_all[0] in hit_list:
                     self.ground_type = Dirt()
                 # Take damage if rabbit is on redstone
-                if hit_list_all[0] in hit_list_redstone:
+                elif hit_list_all[0] in hit_list_redstone:
                     self.ground_type = Dirt()
                     self.hit(1)
+                elif hit_list_all[0] in hit_list_mirror:
+                    self.ground_type = Mirror()
                 elif hit_list_all[0] in hit_list_ice:
                     self.ground_type = Ice()
                 self.land()
@@ -284,7 +303,8 @@ class Rabbit(pygame.sprite.Sprite):
 
     def check_collision_horizontal(self):
         current_position = self.position
-        # Check collision with unwalkable tiles
+        # Check left and right collision with unwalkable tiles
+        # collision is not checked for mirror tiles as we do not expect the rabbit to move into the mirror tiles
         hit_list = pygame.sprite.spritecollide(self, self.unwalkable_tile_group, False)
         hit_list_ice = pygame.sprite.spritecollide(self, self.unwalkable_tile_group_ice, False)
         hit_list_redstone = pygame.sprite.spritecollide(self, self.unwalkable_tile_group_redstone, False)
@@ -318,7 +338,7 @@ class Rabbit(pygame.sprite.Sprite):
             self.velocity_glide_r -= self.ground_type.glide_decay
         self.velocity_glide_r = max(0, self.velocity_glide_r)
         # Update position based on velocity on that direction
-        self.position += self.velocity + self.velocitylr + self.velocityplatform - Vector2(self.velocity_glide_l, 0) + Vector2(self.velocity_glide_r, 0)
+        self.position += self.velocity + self.velocitylr * self.ground_type.get_horizontal_velocity_modifier()  + self.velocityplatform - Vector2(self.velocity_glide_l, 0) + Vector2(self.velocity_glide_r, 0)
         # Update velocity based on air type, only vertical velocity is affected
         if not self.is_on_ground:
             self.velocity.y += self.air_type.get_gravity() # Current value: 1
@@ -330,11 +350,14 @@ class Rabbit(pygame.sprite.Sprite):
     def jump(self, keys):
         # jump can only be triggered by a key, the rabbit must be on the ground
         # jump creates a vertical velocity boost of 20
-        if keys[pygame.K_SPACE] and self.is_on_ground:
+        if keys[pygame.K_SPACE] and self.is_on_ground and not self.has_jumped:
             print("Jump")
             self.is_on_ground = False
             self.velocity.y = -20
-            
+            self.has_jumped = True
+        elif not keys[pygame.K_SPACE]:
+            self.has_jumped = False
+
     def land(self):
         # land on the ground, reset vertical velocity, set is_on_ground to True
         # take damage if current vertical velocity is greater than 30
@@ -345,9 +368,9 @@ class Rabbit(pygame.sprite.Sprite):
 
     # Bug: velocity is not immediately updated when rabbit switches tiles
     def move_left_keys(self, keys):
-        if keys[pygame.K_LEFT] or keys[pygame.K_a] and not self.is_walking_right:
+        if keys[pygame.K_LEFT] and not self.is_walking_right:
             if not self.is_walking_left:
-                self.velocitylr.x = -1 * self.ground_type.get_horizontal_velocity_modifier() 
+                self.velocitylr.x = -1 
                 self.is_walking_left = True
                 self.is_walking_right = False
                 self.update_image_direction()
@@ -357,13 +380,15 @@ class Rabbit(pygame.sprite.Sprite):
                 # Glide effect if on ice
                 if isinstance(self.ground_type, Ice):
                     self.velocity_glide_l = self.ground_type.glide_force
+                elif isinstance(self.ground_type, Mirror):
+                    self.velocity_glide_l = self.ground_type.glide_force
                 self.is_walking_left = False
                 self.update_image_direction()
 
     def move_right_keys(self, keys):
-        if keys[pygame.K_RIGHT] or keys[pygame.K_d] and self.is_on_ground and not self.is_walking_left:
+        if keys[pygame.K_RIGHT] and not self.is_walking_left:
             if not self.is_walking_right:
-                self.velocitylr.x = 1 * self.ground_type.get_horizontal_velocity_modifier()
+                self.velocitylr.x = 1 
                 self.is_walking_right = True
                 self.is_walking_left = False
                 self.update_image_direction()
@@ -371,6 +396,8 @@ class Rabbit(pygame.sprite.Sprite):
             if self.is_walking_right:
                 self.velocitylr.x = 0
                 if isinstance(self.ground_type, Ice):
+                    self.velocity_glide_r = self.ground_type.glide_force
+                elif isinstance(self.ground_type, Mirror):
                     self.velocity_glide_r = self.ground_type.glide_force
                 self.is_walking_right = False
                 self.update_image_direction()
@@ -498,7 +525,7 @@ def main():
     # ====================================================================================================
     platform_image = pygame.surface.Surface((32*5, 32))
     platform_image.fill(DIRT)
-    platform1 = MovablePlatform(600, 32*8+16, Vector2(2.5, 0), platform_image, 32*5, width - 32*5, 0, 800)
+    platform1 = MovablePlatform(600, 32*8, Vector2(2.5, 0), platform_image, 32*5, width - 32*5, 0, 800)
 
     platform_image = pygame.surface.Surface((32*5, 32))
     platform_image.fill(REDSTONE)
@@ -521,6 +548,21 @@ def main():
     bullets3_1 = pygame.sprite.Group()
     bullets3_2 = pygame.sprite.Group()
 
+    # Level 4
+    # ====================================================================================================
+    level4 = Level('level4.csv', 'level4.png', Vector2(600, 700), [])
+    rabbit4 = Rabbit(*level4.rabbitspawn_pos, 190, 190, level4)
+
+    chocolate4_1 = Chocolate(32 * 6, 32*3, 100, 100, rabbit4)
+    chocolate4_2 = Chocolate(width - 32 * 5, 32*2, 100, 100, rabbit4)
+    chocolate4_3 = Chocolate(32 * 20, 32*7, 100, 100, rabbit4)
+
+    sprites4 = pygame.sprite.Group(rabbit4)
+    chocolates4 = pygame.sprite.Group(chocolate4_1, chocolate4_2, chocolate4_3)
+    bullets4 = pygame.sprite.Group()
+    bullets4_1 = pygame.sprite.Group()
+    bullets4_2 = pygame.sprite.Group()
+
     # =====================================================================================================
 
     clock = pygame.time.Clock()
@@ -534,7 +576,7 @@ def main():
     rabbit_health_bar = pygame_gui.elements.UIScreenSpaceHealthBar(pygame.Rect((0, height - 32), (width, 32)),ui_manager,
                                                             rabbit)
     current_mapid = 1
-    total_maps = 3
+    total_maps = 4
     mapid_label = pygame_gui.elements.UILabel(pygame.Rect((460, 32), (250, 25)), 
                                               f"Map: {current_mapid}/{total_maps}", ui_manager)
     running = True
@@ -637,9 +679,43 @@ def main():
                 current_mapid = 4
                 sprites3.empty()
                 bullets3.empty()
-                # quit game
-                pygame.quit()
-                sys.exit()
+
+        if current_mapid == 4:
+
+            if last_bullet_time4 is None or now - last_bullet_time4 >= 1650:
+                bullet1 = Bullet(32 * 6 + 16, 32 * 5 + 16, Vector2(random.random() * 200 - 100, random.random() * 100).normalize(), 
+                                level4.unwalkable_tile_group, rabbit4, obstacle_group_2=level4.unwalkable_tile_group_2, obstacle_group_5=level4.unwalkable_tile_group_5)
+                bullet2 = Bullet(32 * 20 + 16, 32 * 15 + 16, Vector2(random.random() * 200 - 100, random.random() * 100).normalize(), 
+                                level4.unwalkable_tile_group, rabbit4, obstacle_group_2=level4.unwalkable_tile_group_2, obstacle_group_5=level4.unwalkable_tile_group_5)
+                bullet3 = Bullet(32 * 26 + 16, 32 * 12 + 16, Vector2(random.random() * 200 - 100, random.random() * 100).normalize(), 
+                                level4.unwalkable_tile_group, rabbit4, obstacle_group_2=level4.unwalkable_tile_group_2, obstacle_group_5=level4.unwalkable_tile_group_5)
+                bullet4 = Bullet(32 * 13 + 16, 32 * 7 + 16, Vector2(random.random() * 200 - 100, random.random() * 100).normalize(), 
+                                level4.unwalkable_tile_group, rabbit4, obstacle_group_2=level4.unwalkable_tile_group_2, obstacle_group_5=level4.unwalkable_tile_group_5)
+                bullets4.add(bullet1, bullet2, bullet3, bullet4)
+                last_bullet_time4 = now
+
+            if last_bullet_time is None or now - last_bullet_time >= 3000:
+                bullet5 = Bullet(16, 32 * 11 + 16, Vector2(100, 0).normalize(), 
+                                level4.unwalkable_tile_group, rabbit4, obstacle_group_2=level4.unwalkable_tile_group_2, obstacle_group_5=level4.unwalkable_tile_group_5)
+                bullets4.add(bullet5)
+                last_bullet_time = now
+
+            rabbit_health_bar.set_sprite_to_monitor(rabbit4)
+            mapid_label.set_text(f"Map: {current_mapid}/{total_maps}")
+            rabbit4.update(keys)
+            level4.update()
+            bullets4.update()
+            chocolates4.update()
+
+            screen.blit(level4.level_image_file, (0, 0))
+            sprites4.draw(screen)
+            chocolates4.draw(screen)
+            bullets4.draw(screen)
+            if rabbit4.mission_completed:
+                # current_mapid = 5
+                # sprites4.empty()
+                # bullets4.empty()
+                pass
 
         ui_manager.update(1/60)
         ui_manager.draw_ui(screen)
