@@ -441,7 +441,7 @@ class Rabbit(pygame.sprite.Sprite):
 
     def respawn(self):
         if self.level is None:
-            self.position = (1184 // 2 ,  800 - 128 - 64) # Duck tape, must be title screen
+            self.position = (1184 // 2 ,  800 - 128 - 64) # Duck tape, no level then must be title screen
         else:
             self.position = self.level.rabbitspawn_pos.copy()
         self.rect.topleft = self.position
@@ -509,6 +509,15 @@ class Chocolate(pygame.sprite.Sprite):
             self.exists = False
 
 
+# function to generate chocolates
+def generate_chocolates(location_list, rabbit):
+    chocolate_list = []
+    for location in location_list:
+        chocolate = Chocolate(location[0], location[1], 100, 100, rabbit)
+        chocolate_list.append(chocolate)
+    return chocolate_list
+
+
 def main():
     pygame.init()
     pygame.display.set_caption("Platformer Game Test")
@@ -526,31 +535,18 @@ def main():
 
     rabbit = Rabbit(*level.rabbitspawn_pos, 100, 100, level)
 
-    chocolate = Chocolate(32 * 4, 259, 100, 100, rabbit)
-    chocolate2 = Chocolate(32 * 4, 580, 100, 100, rabbit)
-    chocolate3 = Chocolate(32 * 16, 515, 100, 100, rabbit)
-
     sprites = pygame.sprite.Group(rabbit, platform)
-    chocolates = pygame.sprite.Group(chocolate, chocolate2, chocolate3)
+    chocolates = pygame.sprite.Group(generate_chocolates([(32 * 4, 259), (32 * 4, 580), (32 * 16, 515)], rabbit))
     bullets = pygame.sprite.Group()
 
-    def initiate_chocolates_1():
-        chocolate = Chocolate(32 * 4, 259, 100, 100, rabbit)
-        chocolate2 = Chocolate(32 * 4, 580, 100, 100, rabbit)
-        chocolate3 = Chocolate(32 * 16, 515, 100, 100, rabbit)
-        chocolates = pygame.sprite.Group(chocolate, chocolate2, chocolate3)
         
     # Level 2
     # ====================================================================================================
     level2 = Level('level2.csv', 'level2.png', Vector2(600, 600), [])
     rabbit2 = Rabbit(*level2.rabbitspawn_pos, 130, 130, level2)
 
-    chocolate2_1 = Chocolate(32 * 18, 32*6, 100, 100, rabbit2)
-    chocolate2_2 = Chocolate(32 * 7, 32*7, 100, 100, rabbit2)
-    chocolate2_3 = Chocolate(32 * 29, 32*7, 100, 100, rabbit2)
-
     sprites2 = pygame.sprite.Group(rabbit2)
-    chocolates2 = pygame.sprite.Group(chocolate2_1, chocolate2_2, chocolate2_3)
+    chocolates2 = pygame.sprite.Group(generate_chocolates([(32 * 18, 32*6), (32 * 7, 32*7), (32 * 29, 32*7)], rabbit2))
     bullets2 = pygame.sprite.Group()
     bullets2_1 = pygame.sprite.Group()
     bullets2_2 = pygame.sprite.Group()
@@ -572,12 +568,8 @@ def main():
     level3 = Level('level3.csv', 'level3.png', Vector2(600, 700), [platform1, platform2, platform3])
     rabbit3 = Rabbit(*level3.rabbitspawn_pos, 160, 160, level3)
 
-    chocolate3_1 = Chocolate(32 * 4, 32*3, 100, 100, rabbit3)
-    chocolate3_2 = Chocolate(width - 32 * 5, 32*3, 100, 100, rabbit3)
-    chocolate3_3 = Chocolate(width // 2 - 16, height - 32*7, 100, 100, rabbit3)
-
     sprites3 = pygame.sprite.Group(rabbit3, platform1, platform2, platform3)
-    chocolates3 = pygame.sprite.Group(chocolate3_1, chocolate3_2, chocolate3_3)
+    chocolates3 = pygame.sprite.Group(generate_chocolates([(32 * 4, 32*3), (width - 32 * 5, 32*3), (width // 2 - 16, height - 32*7)], rabbit3))
     bullets3 = pygame.sprite.Group()
     bullets3_1 = pygame.sprite.Group()
     bullets3_2 = pygame.sprite.Group()
@@ -587,12 +579,8 @@ def main():
     level4 = Level('level4.csv', 'level4.png', Vector2(600, 700), [])
     rabbit4 = Rabbit(*level4.rabbitspawn_pos, 190, 190, level4)
 
-    chocolate4_1 = Chocolate(32 * 6, 32*3, 100, 100, rabbit4)
-    chocolate4_2 = Chocolate(width - 32 * 5, 32*2, 100, 100, rabbit4)
-    chocolate4_3 = Chocolate(32 * 20, 32*7, 100, 100, rabbit4)
-
     sprites4 = pygame.sprite.Group(rabbit4)
-    chocolates4 = pygame.sprite.Group(chocolate4_1, chocolate4_2, chocolate4_3)
+    chocolates4 = pygame.sprite.Group(generate_chocolates([(32 * 4, 32*3), (width - 32 * 5, 32*2), (32 * 20, 32*7)], rabbit4))
     bullets4 = pygame.sprite.Group()
     bullets4_1 = pygame.sprite.Group()
     bullets4_2 = pygame.sprite.Group()
@@ -682,7 +670,7 @@ def main():
             if rabbit.mission_completed: # Duck tape: last rabbit
                 current_mapid = 2
                 bullets.empty()
-                initiate_chocolates_1()
+                chocolates = pygame.sprite.Group(generate_chocolates([(32 * 4, 259), (32 * 4, 580), (32 * 16, 515)], rabbit))
                 rabbit.reinitiate()
 
         if current_mapid == 2:
@@ -722,7 +710,7 @@ def main():
                 current_mapid = 3
                 bullets2.empty()
                 bullets2_1.empty()
-                chocolates2 = pygame.sprite.Group(chocolate2_1, chocolate2_2, chocolate2_3)
+                chocolates2 = pygame.sprite.Group(generate_chocolates([(32 * 18, 32*6), (32 * 7, 32*7), (32 * 29, 32*7)], rabbit2))
                 rabbit2.reinitiate()
 
         if current_mapid == 3:
@@ -751,7 +739,7 @@ def main():
             if rabbit3.mission_completed:
                 current_mapid = 4
                 bullets3.empty()
-                chocolates3 = pygame.sprite.Group(chocolate3_1, chocolate3_2, chocolate3_3)
+                chocolates3 = pygame.sprite.Group(generate_chocolates([(32 * 4, 32*3), (width - 32 * 5, 32*3), (width // 2 - 16, height - 32*7)], rabbit3))
                 rabbit3.reinitiate()
 
         if current_mapid == 4:
@@ -786,11 +774,10 @@ def main():
             chocolates4.draw(screen)
             bullets4.draw(screen)
             if rabbit4.mission_completed:
-                current_mapid = 5
+                current_mapid = -1
                 bullets4.empty()
-                chocolates4 = pygame.sprite.Group(chocolate4_1, chocolate4_2, chocolate4_3)
+                chocolates4 = pygame.sprite.Group(generate_chocolates([(32 * 4, 32*3), (width - 32 * 5, 32*2), (32 * 20, 32*7)], rabbit4))
                 rabbit4.reinitiate()
-                pygame.quit()
 
 
         if current_mapid == -1:
