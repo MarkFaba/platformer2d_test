@@ -25,6 +25,10 @@ BRONZE = pygame.color.Color("#CD7F32")
 DIAMOND = pygame.color.Color("#28C9D4")
 DIRT = pygame.color.Color("#472522")
 
+# Temp variables
+GAME_SCORE = 0
+
+
 class UnWalkableTile(pygame.sprite.Sprite):
     def __init__(self, x, y):
         super().__init__()
@@ -73,23 +77,24 @@ class Bullet(pygame.sprite.Sprite):
         if self.obstacle_group_5:
             if pygame.sprite.spritecollideany(self, self.obstacle_group_5): # Ice
                 self.kill()
-        if pygame.sprite.collide_rect(self, self.rabbit):
-            self.rabbit.hit(20)
-            if self.rabbit.direction == "left":
-                self.rabbit.velocity_glide_r += 10.0
-                if self.rabbit.is_on_ground:
-                    self.rabbit.velocity.y += -6
-                else:
-                    self.rabbit.velocity.y += 6
-            elif self.rabbit.direction == "right":
-                self.rabbit.velocity_glide_l += 10.0
-                if self.rabbit.is_on_ground:
-                    self.rabbit.velocity.y += -6
-                else:
-                    self.rabbit.velocity.y += 6
-            print(self.rabbit.current_health)
-            print("hit")
-            self.kill()
+        if self.rabbit is not None:
+            if pygame.sprite.collide_rect(self, self.rabbit):
+                self.rabbit.hit(20)
+                if self.rabbit.direction == "left":
+                    self.rabbit.velocity_glide_r += 10.0
+                    if self.rabbit.is_on_ground:
+                        self.rabbit.velocity.y += -6
+                    else:
+                        self.rabbit.velocity.y += 6
+                elif self.rabbit.direction == "right":
+                    self.rabbit.velocity_glide_l += 10.0
+                    if self.rabbit.is_on_ground:
+                        self.rabbit.velocity.y += -6
+                    else:
+                        self.rabbit.velocity.y += 6
+                print(self.rabbit.current_health)
+                print("hit")
+                self.kill()
 
 class MovablePlatform(pygame.sprite.Sprite):
     def __init__(self, x, y, velocity, image, start_x, end_x, start_y, end_y, marker='1'):
@@ -219,6 +224,7 @@ class Rabbit(pygame.sprite.Sprite):
         self.rect.topleft = (x, y)
         self.position = Vector2(x, y)
         self.position_center = Vector2(x + self.rect.width / 2, y + self.rect.height / 2)
+        self.initital_position = Vector2(x, y).copy()
         self.velocity = Vector2(0, 0) 
         self.velocitylr = Vector2(0, 0)
         self.velocityplatform = Vector2(0, 0)
@@ -233,10 +239,16 @@ class Rabbit(pygame.sprite.Sprite):
         self.ground_type = Dirt()
         self.air_type = Air()
         self.level = level
-        self.unwalkable_tile_group = level.unwalkable_tile_group
-        self.unwalkable_tile_group_mirror = level.unwalkable_tile_group_2
-        self.unwalkable_tile_group_redstone = level.unwalkable_tile_group_4
-        self.unwalkable_tile_group_ice = level.unwalkable_tile_group_5
+        if self.level is not None:
+            self.unwalkable_tile_group = level.unwalkable_tile_group
+            self.unwalkable_tile_group_mirror = level.unwalkable_tile_group_2
+            self.unwalkable_tile_group_redstone = level.unwalkable_tile_group_4
+            self.unwalkable_tile_group_ice = level.unwalkable_tile_group_5
+        else:
+            self.unwalkable_tile_group = pygame.sprite.Group()
+            self.unwalkable_tile_group_mirror = pygame.sprite.Group()
+            self.unwalkable_tile_group_redstone = pygame.sprite.Group()
+            self.unwalkable_tile_group_ice = pygame.sprite.Group()
         self.collected_chocolates = 0
         self.mission_completed = False 
         self.is_on_platform = False
@@ -358,6 +370,13 @@ class Rabbit(pygame.sprite.Sprite):
         elif not keys[pygame.K_SPACE]:
             self.has_jumped = False
 
+    def jump_title_screen(self):
+        # used with a button on the title screen
+        if self.is_on_ground:
+            print("Jump")
+            self.is_on_ground = False
+            self.velocity.y = -20
+
     def land(self):
         # land on the ground, reset vertical velocity, set is_on_ground to True
         # take damage if current vertical velocity is greater than 30
@@ -421,7 +440,10 @@ class Rabbit(pygame.sprite.Sprite):
         pass
 
     def respawn(self):
-        self.position = self.level.rabbitspawn_pos.copy()
+        if self.level is None:
+            self.position = (1184 // 2 ,  800 - 128 - 64) # Duck tape, must be title screen
+        else:
+            self.position = self.level.rabbitspawn_pos.copy()
         self.rect.topleft = self.position
         self.velocity.y = 0
         self.velocity.x = 0
@@ -429,6 +451,12 @@ class Rabbit(pygame.sprite.Sprite):
         self.velocity_glide_r = 0
         self.current_health = self.health_capacity
         print("Rabbit respawned!")
+
+    def reinitiate(self):
+        self.position = self.initital_position
+        self.rect.topleft = self.position
+        self.mission_completed = False
+        self.current_health = self.health_capacity
 
     def collected_3_chocolates(self):
         if self.collected_chocolates == 3:
@@ -506,6 +534,12 @@ def main():
     chocolates = pygame.sprite.Group(chocolate, chocolate2, chocolate3)
     bullets = pygame.sprite.Group()
 
+    def initiate_chocolates_1():
+        chocolate = Chocolate(32 * 4, 259, 100, 100, rabbit)
+        chocolate2 = Chocolate(32 * 4, 580, 100, 100, rabbit)
+        chocolate3 = Chocolate(32 * 16, 515, 100, 100, rabbit)
+        chocolates = pygame.sprite.Group(chocolate, chocolate2, chocolate3)
+        
     # Level 2
     # ====================================================================================================
     level2 = Level('level2.csv', 'level2.png', Vector2(600, 600), [])
@@ -564,7 +598,31 @@ def main():
     bullets4_2 = pygame.sprite.Group()
 
     # =====================================================================================================
+    # current_mapid = -1 as end game screen, 
+    # display two pygame_gui buttons: restart; quit.
+    rabbit0 = Rabbit(width // 2 ,  height - 128 - 64, 100, 100, None)
+    bullets0 = pygame.sprite.Group()
+    ui_manager2 = pygame_gui.UIManager((width, height), 'theme_light_green.json')
 
+    # Invisible sprites the same as button rect
+    restart_sprite = pygame.sprite.Sprite()
+    restart_sprite.rect = pygame.Rect((width // 2 - 100, height // 2 - 60), (200, 50))
+    quit_sprite = pygame.sprite.Sprite()
+    quit_sprite.rect = pygame.Rect((width // 2 - 100, height // 2 + 10), (200, 50))
+    instruction_sprite = pygame.sprite.Sprite()
+    instruction_sprite.rect = pygame.Rect((width // 2 - 300, height - 128), (600, 50))
+    buttons_sprites = pygame.sprite.Group(restart_sprite, quit_sprite, instruction_sprite)
+    rabbit0.unwalkable_tile_group_mirror = buttons_sprites
+    sprites0 = pygame.sprite.Group(rabbit0)
+
+    restart_button = pygame_gui.elements.UIButton(pygame.Rect((width // 2 - 100, height // 2 - 60), (200, 50)),
+                                                    "Start", ui_manager2)
+    quit_button = pygame_gui.elements.UIButton(pygame.Rect((width // 2 - 100, height // 2 + 10), (200, 50)),
+                                                "Quit", ui_manager2)
+    instruction_button = pygame_gui.elements.UIButton(pygame.Rect((width // 2 - 300, height - 128), (600, 50)),
+                                                "Left arrow: move left, Right arrow: move right, Space: jump", ui_manager2)
+
+    # =====================================================================================================
     clock = pygame.time.Clock()
     last_bullet_time = None
     last_bullet_time2 = None
@@ -575,7 +633,7 @@ def main():
     ui_manager = pygame_gui.UIManager((width, height), 'theme.json')
     rabbit_health_bar = pygame_gui.elements.UIScreenSpaceHealthBar(pygame.Rect((0, height - 32), (width, 32)),ui_manager,
                                                             rabbit)
-    current_mapid = 1
+    current_mapid = -1
     total_maps = 4
     mapid_label = pygame_gui.elements.UILabel(pygame.Rect((460, 32), (250, 25)), 
                                               f"Map: {current_mapid}/{total_maps}", ui_manager)
@@ -584,19 +642,32 @@ def main():
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
+            if event.type == pygame_gui.UI_BUTTON_PRESSED:
+                if event.ui_element == restart_button:
+                    bullets0.empty()
+                    rabbit0.reinitiate()
+                    current_mapid = 1
+                if event.ui_element == quit_button:
+                    running = False
+                if event.ui_element == instruction_button:
+                    rabbit0.jump_title_screen()
+
+        ui_manager2.process_events(event)
         ui_manager.process_events(event)
         now = pygame.time.get_ticks()
         keys = pygame.key.get_pressed()
 
         if current_mapid == 1:
             # Create new bullet every 1 second
-            if last_bullet_time is None or now - last_bullet_time >= 1500:
+            if last_bullet_time is None or now - last_bullet_time >= 1400:
                 bullet1 = Bullet(35, 35, Vector2(random.random() * 100, random.random() * 100).normalize(), level.unwalkable_tile_group, rabbit)
                 bullet2 = Bullet(width-35, 35, Vector2(random.random() * -100, random.random() * 100).normalize(), level.unwalkable_tile_group, rabbit)
                 bullet3 = Bullet(width // 2, 35, Vector2(random.random() * 200 - 100, random.random() * 100).normalize(), level.unwalkable_tile_group, rabbit)
                 bullets.add(bullet1, bullet2, bullet3)
                 last_bullet_time = now
 
+            rabbit_health_bar.set_sprite_to_monitor(rabbit)
+            mapid_label.set_text(f"Map: {current_mapid}/{total_maps}")
             rabbit.update(keys)
             chocolates.update()
             level.update()
@@ -610,8 +681,9 @@ def main():
             bullets.draw(screen)
             if rabbit.mission_completed: # Duck tape: last rabbit
                 current_mapid = 2
-                sprites.empty()
                 bullets.empty()
+                initiate_chocolates_1()
+                rabbit.reinitiate()
 
         if current_mapid == 2:
 
@@ -648,9 +720,10 @@ def main():
             bullets2_1.draw(screen)
             if rabbit2.mission_completed:
                 current_mapid = 3
-                sprites2.empty()
                 bullets2.empty()
                 bullets2_1.empty()
+                chocolates2 = pygame.sprite.Group(chocolate2_1, chocolate2_2, chocolate2_3)
+                rabbit2.reinitiate()
 
         if current_mapid == 3:
     
@@ -677,8 +750,9 @@ def main():
             bullets3.draw(screen)
             if rabbit3.mission_completed:
                 current_mapid = 4
-                sprites3.empty()
                 bullets3.empty()
+                chocolates3 = pygame.sprite.Group(chocolate3_1, chocolate3_2, chocolate3_3)
+                rabbit3.reinitiate()
 
         if current_mapid == 4:
 
@@ -712,10 +786,33 @@ def main():
             chocolates4.draw(screen)
             bullets4.draw(screen)
             if rabbit4.mission_completed:
-                # current_mapid = 5
-                # sprites4.empty()
-                # bullets4.empty()
-                pass
+                current_mapid = 5
+                bullets4.empty()
+                chocolates4 = pygame.sprite.Group(chocolate4_1, chocolate4_2, chocolate4_3)
+                rabbit4.reinitiate()
+                pygame.quit()
+
+
+        if current_mapid == -1:
+            
+            if last_bullet_time is None or now - last_bullet_time >= 300:
+                bullet1 = Bullet(35, 0, Vector2(random.random() * 100, random.random() * 100).normalize(), buttons_sprites, rabbit0)
+                bullet2 = Bullet(width-35, 0, Vector2(random.random() * -100, random.random() * 100).normalize(), buttons_sprites, rabbit0)
+                bullet3 = Bullet(width // 2, 0, Vector2(random.random() * 200 - 100, random.random() * 100).normalize(), buttons_sprites, rabbit0)
+                bullets0.add(bullet1, bullet2, bullet3)
+                last_bullet_time = now
+            
+            bullets0.update()
+            rabbit0.update(keys)
+            bullets0.draw(screen)
+            sprites0.draw(screen)
+            buttons_sprites.update()
+
+            rabbit_health_bar.set_sprite_to_monitor(rabbit0)
+            mapid_label.set_text(f"Map: 0/{total_maps}")
+            ui_manager2.update(1/60)
+            ui_manager2.draw_ui(screen)
+
 
         ui_manager.update(1/60)
         ui_manager.draw_ui(screen)
